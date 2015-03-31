@@ -8,14 +8,24 @@ use feature qw/say/;
 use DigitalOcean;
 use File::Slurp qw/read_file/;
 use FindBin;
+use List::Util qw/all/;
 
 
 my %conf;
+my @signals = qw/INT HUP TERM QUIT/;
 
 foreach(read_file("$FindBin::Bin/config")) {
    chomp;
    if (m/\A\h*+([^\h]++)\h*+=\h*+([^\h]++)\h*+\z/) {
       $conf{$1} = $2
+   }
+}
+
+if (@ARGV) {
+   if ($ARGV[0] eq 'i' || $ARGV[0] eq '-i' || $ARGV[0] eq 'interactive' || $ARGV[0] eq '--interactive') {
+      $conf{interactive} = 1
+   } else {
+      $conf{interactive} = 0
    }
 }
 
@@ -33,23 +43,59 @@ if (@droplets) {
    }
 }
 
+sub create_droplet
+{
+   say "Creating Droplet " . $_[1]->{name};
+   my $d = $_[0]->create_droplet(
+      name      => $_[1]->{name},
+      size_id   => $_[1]->{size_id},
+      image_id  => $_[1]->{image_id},
+      region_id => $_[1]->{region_id}
+   );
+   say "Droplet Id: " . $d->id;
+
+   $d
+}
+
+sub destroy_droplet
+{
+   my $droplet;
+   if (@_) {
+      if (all { $_[0] ne $_ } @signals) {
+         $droplet = $_[0]
+      } else {
+         if ($vpn_droplet) {
+            $droplet = $vpn_droplet
+         } else {
+            die "Can't destroy droplet\n"
+         }
+      }
+   }
+   say "Destroying Droplet " . $droplet->name;
+   say "Droplet id: " . $droplet->id;
+
+   $droplet->destroy;
+
+   undef
+}
+
 
 unless ($vpn_droplet) {
-   say "Creating Droplet $conf{name}";
+   if ($conf{interactive}) {
+      say "Interactive mode";
+      foreach (@signals) {
+         $SIG{$_} = \&destroy_droplet
+      }
+   }
 
-   $vpn_droplet = $do->create_droplet(
-      name      => $conf{name},
-      size_id   => $conf{size_id},
-      image_id  => $conf{image_id},
-      region_id => $conf{region_id},
-   );
+   $vpn_droplet = create_droplet $do, \%conf;
 
-   say "Droplet Id: " . $vpn_droplet->id;
+   if ($conf{interactive}) {
+      say "Waiting for signal ...";
+      sleep
+   }
 } else {
-   say "Destroying Droplet $conf{name}";
-   say "Droplet id: " . $vpn_droplet->id;
-
-   $vpn_droplet->destroy;
+   destroy_droplet $vpn_droplet;
 }
 
 say "Done.";
