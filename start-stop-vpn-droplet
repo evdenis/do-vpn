@@ -1,0 +1,57 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+use feature qw/say/;
+
+use DigitalOcean;
+use File::Slurp qw/read_file/;
+use FindBin;
+
+
+my %conf;
+
+foreach(read_file("$FindBin::Bin/config")) {
+   chomp;
+   if (m/\A\h*+([^\h]++)\h*+=\h*+([^\h]++)\h*+\z/) {
+      $conf{$1} = $2
+   }
+}
+
+my $do = DigitalOcean->new(client_id=> $conf{client_id}, api_key => $conf{api_key}, wait_on_events => 1);
+ 
+
+my $vpn_droplet;
+my @droplets = @{$do->droplets};
+
+if (@droplets) {
+   foreach (@droplets) {
+      if ($_->name eq $conf{name}) {
+         $vpn_droplet = $_
+      }
+   }
+}
+
+
+unless ($vpn_droplet) {
+   say "Creating Droplet $conf{name}";
+
+   $vpn_droplet = $do->create_droplet(
+      name      => $conf{name},
+      size_id   => $conf{size_id},
+      image_id  => $conf{image_id},
+      region_id => $conf{region_id},
+   );
+
+   say "Droplet Id: " . $vpn_droplet->id;
+} else {
+   say "Destroying Droplet $conf{name}";
+   say "Droplet id: " . $vpn_droplet->id;
+
+   $vpn_droplet->destroy;
+}
+
+say "Done.";
+
+
