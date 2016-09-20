@@ -4,3 +4,5 @@ name      = very.original.name
 image     = 00000000
 region    = nyc1
 size      = 512mb
+
+nm_id  = do

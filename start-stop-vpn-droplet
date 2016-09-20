@@ -73,7 +73,17 @@ sub create_droplet
    );
    say "Droplet Id: " . $d->id;
    $d = $_[0]->droplet($d->id);
-   say "Droplet IP: " . $d->networks->v4->[0]->ip_address;
+   my $ip = $d->networks->v4->[0]->ip_address;
+   say "Droplet IP: $ip"
+      if $ip;
+   if ($ip and exists $_[1]->{nm_id} and $_[1]->{nm_id}) {
+      my $nm_id = $_[1]->{nm_id};
+      say "Setting NetworkManager connetion ip address $nm_id to $ip.";
+      my $nm_settings = `nmcli --fields vpn.data connection show $nm_id`;
+      $nm_settings =~ s/vpn\.data:\s++//;
+      $nm_settings =~ s/remote\s*=\s*\K(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/$ip/;
+      `nmcli connection modify $nm_id vpn.data '$nm_settings'`;
+   }
 
    $d
 }
