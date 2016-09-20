@@ -72,6 +72,8 @@ sub create_droplet
       region    => $_[1]->{region}
    );
    say "Droplet Id: " . $d->id;
+   $d = $_[0]->droplet($d->id);
+   say "Droplet IP: " . $d->networks->v4->[0]->ip_address;
 
    $d
 }
