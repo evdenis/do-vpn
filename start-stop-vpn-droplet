@@ -29,28 +29,47 @@ if (@ARGV) {
    }
 }
 
-my $do = DigitalOcean->new(client_id=> $conf{client_id}, api_key => $conf{api_key}, wait_on_events => 1);
+my $do = DigitalOcean->new(oauth_token => $conf{oauth_token}, wait_on_actions => 1);
  
 
 my $vpn_droplet;
-my @droplets = @{$do->droplets};
+my $droplets_collection = $do->droplets;
+my $obj;
 
-if (@droplets) {
-   foreach (@droplets) {
-      if ($_->name eq $conf{name}) {
-         $vpn_droplet = $_
-      }
-   }
+while($obj = $droplets_collection->next) {
+	if ($obj->name eq $conf{name}) {
+         $vpn_droplet = $obj
+	}
 }
+
+# LIST IMAGES/SNAPSHOTS
+#my $img = $do->images;
+#my $i;
+#while($i = $img->next) {
+#   say $i->name . " : " . $i->id;
+#}
+# LIST REGIONS
+#my $img = $do->regions;
+#my $i;
+#while($i = $img->next) {
+#   say $i->name . " : " . $i->slug;
+#}
+# LIST SIZES
+#my $img = $do->sizes;
+#my $i;
+#while($i = $img->next) {
+#   say $i->slug . " : " . $i->disk;
+#}
+
 
 sub create_droplet
 {
    say "Creating Droplet " . $_[1]->{name};
    my $d = $_[0]->create_droplet(
       name      => $_[1]->{name},
-      size_id   => $_[1]->{size_id},
-      image_id  => $_[1]->{image_id},
-      region_id => $_[1]->{region_id}
+      size      => $_[1]->{size},
+      image     => $_[1]->{image},
+      region    => $_[1]->{region}
    );
    say "Droplet Id: " . $d->id;
 
@@ -74,7 +93,7 @@ sub destroy_droplet
    say "Destroying Droplet " . $droplet->name;
    say "Droplet id: " . $droplet->id;
 
-   $droplet->destroy;
+   $droplet->delete;
 
    undef
 }
